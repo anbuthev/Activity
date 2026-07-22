@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Picker, Word Search & Scoreboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .page {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 650px;
+            width: 100%;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        /* Welcome Page Styles */
+        .instructions-box {
+            background: #f8f9fa;
+            border-left: 5px solid #3498db;
+            padding: 15px 20px;
+            border-radius: 6px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .instructions-box h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .instructions-box ol {
+            margin-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #495057;
+        }
+
+        /* Wheel Styles */
+        .wheel-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #e74c3c;
+            z-index: 10;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #result {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #27ae60;
+            min-height: 35px;
+            text-align: center;
+        }
+
+        /* Scoreboard Table Styles */
+        .scoreboard-container {
+            width: 100%;
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid #dcdde1;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background-color: #f1f2f6;
+        }
+
+        /* Game Page Styles */
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #34495e;
+            background: #ecf0f1;
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 8px;
+            user-select: none;
+        }
+
+        .grid-cell {
+            width: 32px;
+            height: 32px;
+            background: #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+
+        .grid-cell:hover {
+            background: #d5dbdb;
+        }
+
+        .grid-cell.selected {
+            background: #3498db;
+            color: white;
+        }
+
+        .grid-cell.found {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-height: 100px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .word-item {
+            background: #e2e8f0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .word-item.found {
+            background: #2ecc71;
+            color: white;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 0: WELCOME & INSTRUCTIONS PAGE -->
+    <div id="welcomePage" class="page active">
+        <h1>Welcome to Fun Activity !</h1>
+        <div class="instructions-box">
+            <h3>How to Play:</h3>
+            <ol>
+                <li>Click <strong>"Start Game"</strong> to go to the Wheel Spinner.</li>
+                <li>Spin the wheel to choose a team member to play.</li>
+                <li>Click <strong>"Go to Word Search Game"</strong> to begin your turn.</li>
+                <li>Find all hidden team member names in the grid horizontally, vertically, or diagonally within <strong>1 minute (01:00)</strong>!</li>
+                <li>Your score will be tracked and updated automatically on the scoreboard.</li>
+            </ol>
+        </div>
+        <button id="startWelcomeBtn" style="background-color: #2ecc71; margin-top: 10px;">START GAME</button>
+    </div>
+
+    <!-- PAGE 1: WHEEL SPINNER & SCOREBOARD -->
+    <div id="wheelPage" class="page">
+        <h1>Who Gonna Play !</h1>
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="500" height="500"></canvas>
+        </div>
+        <button id="spinBtn">SPIN THE WHEEL</button>
+        <div id="result"></div>
+        <button id="goToGameBtn" style="background-color: #2ecc71;">GO TO WORD SEARCH GAME</button>
+
+        <!-- Scoreboard Table -->
+        <h3 style="width: 100%; margin-top: 5px; color: #2c3e50; text-align: left;">Player Scoreboard</h3>
+        <div class="scoreboard-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Member Name</th>
+                        <th>Points / Words Found</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreTableBody">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE 2: WORD SEARCH GAME -->
+    <div id="gamePage" class="page">
+        <h2>Find the Team Members!</h2>
+        <div class="game-info">
+            <span id="playerTurn">Selected Player: </span>
+            <span id="timer">Time Left: 01:00</span>
+        </div>
+        
+        <div class="word-list" id="wordList"></div>
+        <div class="grid-container" id="wordGrid"></div>
+
+        <button id="restartBtn" style="background-color: #e74c3c;">Back to Wheel & Save Score</button>
+    </div>
+
+    <script>
+        const names = [
+             "Manoj", "Hari", "Monica", "Durgasri","Sunil",
+            "Adithya", "Amruthaa", "Bernard", "Bhumika", "Gokul",
+            "Jahnavi", "Leelavathi", "Mohammed", "Nithish", "Preetha"
+        ];
+
+        // Track scores for each member
+        const playerScores = {};
+        names.forEach(name => { playerScores[name] = 0; });
+
+        // --- NAVIGATION LOGIC ---
+        const welcomePage = document.getElementById('welcomePage');
+        const wheelPage = document.getElementById('wheelPage');
+        const gamePage = document.getElementById('gamePage');
+        const startWelcomeBtn = document.getElementById('startWelcomeBtn');
+
+        startWelcomeBtn.addEventListener('click', () => {
+            welcomePage.classList.remove('active');
+            wheelPage.classList.add('active');
+            drawWheel(); // Ensure wheel renders properly when switching
+        });
+
+        // --- WHEEL LOGIC ---
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const resultDiv = document.getElementById('result');
+        const goToGameBtn = document.getElementById('goToGameBtn');
+
+        const numSegments = names.length;
+        const arcSize = (2 * Math.PI) / numSegments;
+        const colors = [
+            "#FF5733", "#33FF57", "#3357FF", "#F3FF33", "#FF33F3",
+            "#33FFF0", "#FFA533", "#A533FF", "#FF3366", "#33FFA5",
+            "#6633FF", "#FF6633", "#33CCFF", "#CCFF33", "#FF33CC"
+        ];
+
+        let currentAngle = 0;
+        let isSpinning = false;
+        let selectedWinner = names[0];
+
+        function drawWheel(angle = 0) {
+            const radius = canvas.width / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(radius, radius);
+            ctx.rotate(angle);
+
+            for (let i = 0; i < numSegments; i++) {
+                const startAngle = i * arcSize;
+                const endAngle = startAngle + arcSize;
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius - 10, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.rotate(startAngle + arcSize / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 16px 'Segoe UI', sans-serif";
+                ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+                ctx.shadowBlur = 4;
+                ctx.fillText(names[i], radius - 30, 6);
+                ctx.restore();
+            }
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.arc(radius, radius, 25, 0, 2 * Math.PI);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#dcdde1";
+            ctx.stroke();
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultDiv.textContent = "";
+
+            const randomRotation = Math.random() * 2 * Math.PI;
+            const extraSpins = (Math.floor(Math.random() * 5) + 5) * 2 * Math.PI;
+            const targetAngle = currentAngle + extraSpins + randomRotation;
+            const duration = 4000;
+            const startTime = performance.now();
+
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentSmoothAngle = currentAngle + (targetAngle - currentAngle) * (1 - Math.pow(1 - progress, 3));
+                
+                drawWheel(currentSmoothAngle);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+                    currentAngle = targetAngle % (2 * Math.PI);
+                    
+                    const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI)) + (1.5 * Math.PI)) % (2 * Math.PI);
+                    const winningIndex = Math.floor(normalizedAngle / arcSize) % numSegments;
+                    selectedWinner = names[winningIndex];
+                    
+                    resultDiv.textContent = ` Selected Member: ${selectedWinner}!`;
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        spinBtn.addEventListener('click', spinWheel);
+
+        // --- SCOREBOARD RENDER ---
+        function updateScoreboard() {
+            const tbody = document.getElementById('scoreTableBody');
+            tbody.innerHTML = '';
+            names.forEach(name => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${name}</td><td><strong>${playerScores[name]}</strong> pts</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        updateScoreboard();
+
+        // --- PAGE SWITCHING & GAME SETUP ---
+        const playerTurn = document.getElementById('playerTurn');
+        const timerDisplay = document.getElementById('timer');
+        const wordGrid = document.getElementById('wordGrid');
+        const wordList = document.getElementById('wordList');
+        const restartBtn = document.getElementById('restartBtn');
+
+        goToGameBtn.addEventListener('click', () => {
+            wheelPage.classList.remove('active');
+            gamePage.classList.add('active');
+            playerTurn.textContent = `Playing: ${selectedWinner}`;
+            initGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            playerScores[selectedWinner] = foundWords.size;
+            updateScoreboard();
+
+            gamePage.classList.remove('active');
+            wheelPage.classList.add('active');
+            resultDiv.textContent = "";
+            clearInterval(timerInterval);
+        });
+
+        // --- WORD SEARCH GAME LOGIC ---
+        const GRID_SIZE = 12;
+        let grid = [];
+        let foundWords = new Set();
+        let selectedCells = [];
+        let isMouseDown = false;
+        let timerInterval;
+        let timeLeft = 60;
+
+        const cleanNames = names.map(n => n.toUpperCase());
+
+        function initGame() {
+            foundWords.clear();
+            timeLeft = 60;
+            updateTimerDisplay();
+            clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    playerScores[selectedWinner] = foundWords.size;
+                    updateScoreboard();
+                    alert(`Time's up! You found ${foundWords.size} out of ${names.length} names.`);
+                }
+            }, 1000);
+
+            buildGrid();
+            renderWordList();
+        }
+
+        function updateTimerDisplay() {
+            const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            const secs = String(timeLeft % 60).padStart(2, '0');
+            timerDisplay.textContent = `Time Left: ${mins}:${secs}`;
+        }
+
+        function buildGrid() {
+            grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+            
+            cleanNames.forEach(word => {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    const direction = Math.floor(Math.random() * 3);
+                    const row = Math.floor(Math.random() * GRID_SIZE);
+                    const col = Math.floor(Math.random() * GRID_SIZE);
+
+                    if (canPlaceWord(word, row, col, direction)) {
+                        placeWord(word, row, col, direction);
+                        placed = true;
+                    }
+                }
+            });
+
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (!grid[r][c]) {
+                        grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
+                    }
+                }
+            }
+
+            renderGridDOM();
+        }
+
+        function canPlaceWord(word, row, col, dir) {
+            const len = word.length;
+            if (dir === 0 && col + len > GRID_SIZE) return false;
+            if (dir === 1 && row + len > GRID_SIZE) return false;
+            if (dir === 2 && (col + len > GRID_SIZE || row + len > GRID_SIZE)) return false;
+
+            for (let i = 0; i < len; i++) {
+                let r = row, c = col;
+                if (dir === 0) c += i;
+                else if (dir === 1) r += i;
+                else if (dir === 2) { r += i; c += i; }
+
+                if (grid[r][c] && grid[r][c] !== word[i]) return false;
+            }
+            return true;
+        }
+
+        function placeWord(word, row, col, dir) {
+            for (let i = 0; i < word.length; i++) {
+                let r = row, c = col;
+                if (dir === 0) c += i;
+                else if (dir === 1) r += i;
+                else if (dir === 2) { r += i; c += i; }
+                grid[r][c] = word[i];
+            }
+        }
+
+        function renderWordList() {
+            wordList.innerHTML = '';
+            names.forEach(name => {
+                const span = document.createElement('span');
+                span.className = 'word-item';
+                span.id = `word-${name.toUpperCase()}`;
+                span.textContent = name;
+                wordList.appendChild(span);
+            });
+        }
+
+        function renderGridDOM() {
+            wordGrid.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.textContent = grid[r][c];
+                    
+                    cell.addEventListener('mousedown', () => startSelection(r, c));
+                    cell.addEventListener('mouseenter', () => updateSelection(r, c));
+                    
+                    wordGrid.appendChild(cell);
+                }
+            }
+        }
+
+        document.addEventListener('mouseup', endSelection);
+
+        function startSelection(r, c) {
+            isMouseDown = true;
+            selectedCells = [{r, c}];
+            highlightSelection();
+        }
+
+        function updateSelection(r, c) {
+            if (!isMouseDown) return;
+            const index = selectedCells.findIndex(cell => cell.r === r && cell.c === c);
+            if (index >= 0) {
+                selectedCells = selectedCells.slice(0, index + 1);
+            } else {
+                selectedCells.push({r, c});
+            }
+            highlightSelection();
+        }
+
+        function highlightSelection() {
+            document.querySelectorAll('.grid-cell').forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                const isSel = selectedCells.some(cell => cell.r === r && cell.c === c);
+                if (isSel && !cell.classList.contains('found')) {
+                    cell.classList.add('selected');
+                } else if (!cell.classList.contains('found')) {
+                    cell.classList.remove('selected');
+                }
+            });
+        }
+
+        function endSelection() {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+
+            const formedWord = selectedCells.map(cell => grid[cell.r][cell.c]).join('');
+            const reversedWord = selectedCells.map(cell => grid[cell.r][cell.c]).reverse().join('');
+
+            let matchedWord = null;
+            if (cleanNames.includes(formedWord)) matchedWord = formedWord;
+            else if (cleanNames.includes(reversedWord)) matchedWord = reversedWord;
+
+            if (matchedWord && !foundWords.has(matchedWord)) {
+                foundWords.add(matchedWord);
+                document.getElementById(`word-${matchedWord}`).classList.add('found');
+                selectedCells.forEach(cell => {
+                    const cellEl = document.querySelector(`[data-row='${cell.r}'][data-col='${cell.c}']`);
+                    cellEl.classList.remove('selected');
+                    cellEl.classList.add('found');
+                });
+
+                playerScores[selectedWinner] = foundWords.size;
+
+                if (foundWords.size === names.length) {
+                    clearInterval(timerInterval);
+                    setTimeout(() => alert("Congratulations! You found all team members within 1 minute! 🎉"), 100);
+                }
+            } else {
+                document.querySelectorAll('.grid-cell.selected').forEach(cell => cell.classList.remove('selected'));
+            }
+            selectedCells = [];
+        }
+    </script>
+</body>
+</html>
